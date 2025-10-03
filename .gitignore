@@ -1,0 +1,63 @@
+# Node dependencies
+node_modules/
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+logs
+*.log
+
+# Environment variables
+.env
+.env.local
+.env.*.local
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Build output
+dist/
+build/
+public/css/*.css
+public/css/*.map
+
+# Cache
+.cache/
+.next/
+out/
+.tmp/
+
+# Editor settings
+.vscode/
+.idea/
+*.swp
+
+# ----------------------------
+# Deployment-specific ignores
+# ----------------------------
+
+# Vercel
+.vercel
+
+# Render
+render.yaml
+
+# Fly.io
+fly.toml
+
+# Heroku
+Procfile
+.heroku/
+
+# Railway
+railway.json
+
+# Netlify (just in case)
+.netlify
+
+# Docker
+docker-compose.override.yml
+.dockerignore
