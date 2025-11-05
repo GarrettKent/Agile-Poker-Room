@@ -1,9 +1,8 @@
-// Initialize socket.io connection to the server
 const socket = io();
 
-let currentRoom = null;  // Stores the room code the user is in
-let currentUser = null;  // Stores the current user's name
-let isAdmin = false;     // Tracks if current user is the admin
+let currentRoom = null; 
+let currentUser = null; 
+let isAdmin = false;    
 
 const params = new URLSearchParams(window.location.search);
 const title = params.get('title') || 'LSC Poker';
@@ -51,28 +50,22 @@ const prefillFormFromParams = () => {
 
 prefillFormFromParams();
 
-
 document.getElementById('loginForm').addEventListener('submit', (e) => {
     e.preventDefault();
     
-    // Get which button was clicked (join or create)
     const action = e.submitter.value;
     
-    // Get and clean up user inputs
     const userName = document.getElementById('userName').value.trim();
     const roomCode = document.getElementById('roomCode').value.trim().toUpperCase();
     
-    // Validate that both fields are filled
     if(!userName || !roomCode){
         alert('Please enter both name and room code');
         return;
     }
     
-    // Store user info globally for later use
     currentUser = userName;
     currentRoom = roomCode;
     
-    // Emit appropriate socket event based on action
     if(action === 'create'){
         socket.emit('createRoom', { userName, roomCode });
     }
@@ -128,25 +121,21 @@ function showGameRoom(data) {
 }
 function updateRoomDisplay(state) {
     const container = document.getElementById('playersContainer');
-    container.innerHTML = '';  // Clear existing players
+    container.innerHTML = '';  
     
-    // Filter out the admin from the player list (admin sits in center)
     const players = state.players.filter(p => p.name !== state.admin);
     
-    // If no players yet, don't render anything
     if(players.length === 0) return;
     
     const angleStep = (2 * Math.PI) / players.length;
     
     players.forEach((player, index) => {
         const angle = angleStep * index - Math.PI / 2;
-        const x = 50 + 40 * Math.cos(angle);  // Horizontal position (40% radius)
-        const y = 50 + 35 * Math.sin(angle);  // Vertical position (35% radius)
+        const x = 50 + 40 * Math.cos(angle); 
+        const y = 50 + 35 * Math.sin(angle);
         
-        // Create the player card element
         const playerCard = createPlayerCard(player, state.revealed);
         
-        // Position absolutely within the container
         playerCard.style.position = 'absolute';
         playerCard.style.left = `${x}%`;
         playerCard.style.top = `${y}%`;
@@ -155,26 +144,17 @@ function updateRoomDisplay(state) {
         container.appendChild(playerCard);
     });
     
-    // Update admin controls based on voting status
     updateAdminControls(state);
     
-    // Show vote results if cards have been revealed
     if(state.revealed && state.votes) showVoteResults(state.votes);
 }
 
-/**
- * Enable/disable the "Reveal Cards" button based on voting completion
- * Admin can only reveal when all non-admin players have voted
- * @param {Object} state - Current room state
- */
 function updateAdminControls(state) {
-    // Only update if current user is admin
     if(!isAdmin) return;
     
     const revealButton = document.getElementById('revealCards');
     if(!revealButton) return;
     
-    // Enable button unless cards are already revealed
     if(!state.revealed){
         revealButton.disabled = false;
         revealButton.classList.remove('opacity-50', 'cursor-not-allowed');
@@ -187,23 +167,15 @@ function updateAdminControls(state) {
     }
 }
 
-/**
- * Create a visual card element for a player
- * Shows loading spinner, checkmark (voted), or revealed vote value
- * @param {Object} player - Player object with name and vote
- * @param {boolean} revealed - Whether cards are currently revealed
- * @returns {HTMLElement} The complete player card wrapper element
- */
 function createPlayerCard(player, revealed) {
-    // Container for card and name
+
     const wrapper = document.createElement('div');
     wrapper.className = 'player-card-wrapper flex flex-col items-center';
     
-    // The 3D flipping card
+
     const card = document.createElement('div');
-    card.className = 'card-3d w-16 h-24 md:w-20 md:h-28 relative mb-2';
+    card.className = 'card-3d w-12 h-20 md:w-16 relative mb-1';
     
-    // Add flipped class if cards are revealed and player has voted
     if(revealed && player.vote !== null) card.classList.add('flipped');
     
     const front = document.createElement('div');
@@ -240,11 +212,6 @@ function createPlayerCard(player, revealed) {
     return wrapper;
 }
 
-/**
- * Calculate and display voting results
- * Shows average of numeric votes (excludes "?" votes)
- * @param {Object} votes - Object mapping player names to their votes
- */
 const showVoteResults = votes => {
     const voteResult = document.getElementById('voteResult');
     const averageSpan = document.getElementById('average');
@@ -268,11 +235,6 @@ const showVoteResults = votes => {
     voteResult.classList.remove('hidden');
 }
 
-/**
- * Animate all cards flipping to reveal votes
- * Cards flip in sequence with staggered timing for visual effect
- * @param {Object} votes - Object mapping player names to their votes
- */
 function revealAllCards(votes) {
     const cards = document.querySelectorAll('.card-3d');
     
@@ -289,11 +251,6 @@ function revealAllCards(votes) {
     }, cards.length * 100);
 }
 
-/**
- * Reset all cards back to face-down state
- * Clears votes and hides results
- * Called when admin clicks "Reset Room"
- */
 function resetAllCards() {
     // Flip all cards back to face-down
     const cards = document.querySelectorAll('.card-3d');
@@ -313,10 +270,6 @@ function resetAllCards() {
     document.getElementById('clearVote').classList.add('hidden');
 }
 
-/**
- * Card Selection Event Handlers (for non-admin players)
- * When a player clicks a card value, send vote to server
- */
 document.querySelectorAll('.card-option').forEach(button => {
     button.addEventListener('click', () => {
         const value = button.dataset.value;  // Get card value (0.5, 1, 2, etc.)
@@ -335,52 +288,31 @@ document.querySelectorAll('.card-option').forEach(button => {
     });
 });
 
-/**
- * Clear Vote Button Handler
- * Allows player to retract their vote before cards are revealed
- */
 document.getElementById('clearVote')?.addEventListener('click', () => {
-    // Send null vote to server (clears the vote)
     socket.emit('vote', { roomCode: currentRoom, vote: null });
     
-    // Clear UI selection state
     document.querySelectorAll('.card-option').forEach(btn => {
         btn.classList.remove('card-selected');
     });
     document.getElementById('clearVote').classList.add('hidden');
 });
 
-/**
- * Admin Control: Reveal Cards
- * Admin clicks to flip all cards and show votes
- * Only enabled when all players have voted
- */
 document.getElementById('revealCards')?.addEventListener('click', () => {
     socket.emit('revealCards', currentRoom);
 });
 
-/**
- * Admin Control: Reset Room
- * Clears all votes and starts a new round
- */
 document.getElementById('resetRoom')?.addEventListener('click', () => {
     socket.emit('resetRoom', currentRoom);
 });
 
-/**
- * Copy Room Code to Clipboard
- * Provides visual feedback when code is copied
- */
 document.getElementById('copyRoom')?.addEventListener('click', () => {
     navigator.clipboard.writeText(currentRoom).then(() => {
         const btn = document.getElementById('copyRoom');
         const originalText = btn.textContent;
         
-        // Show "Copied!" feedback
-        btn.textContent = 'Copied!';
+        btn.textContent = 'Copied';
         btn.classList.add('copied-feedback', 'show');
         
-        // Restore original text after 2 seconds
         setTimeout(() => {
             btn.textContent = originalText;
             btn.classList.remove('show');
@@ -394,7 +326,7 @@ document.getElementById('copyRoom')?.addEventListener('click', () => {
 document.getElementById('leaveRoom')?.addEventListener('click', () => {
     if(confirm('Are you sure you want to leave the room?')){
         socket.emit('leaveRoom', currentRoom);
-        location.reload();  // Reload page to return to login screen
+        location.reload(); 
     }
 });
 
