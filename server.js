@@ -14,20 +14,34 @@ const io = socketIO(server, {
     }
 });
 
-// Serve static files (HTML, CSS, JS)from the 'public' directory
 app.use(express.static(path.join(__dirname, 'public')));
 
-/**
- * Room Management
- * In-memory storage for all active poker rooms
- * Key: room code (string), Value: room object
- */
+let keepAliveTimer = null;
+
+const startKeepAlive = () => {
+  if(keepAliveTimer) return; 
+  const KEEP_ALIVE_URL = process.env.RENDER_EXTERNAL_URL || 'https://lsc-poker-room.onrender.com';
+  keepAliveTimer = setInterval(() => {
+    fetch(KEEP_ALIVE_URL)
+      .then(res => console.log(`[KEEPALIVE] Pinged ${KEEP_ALIVE_URL} - ${res.status}`))
+      .catch(err => console.error('[KEEPALIVE ERROR]', err));
+  }, 2 * 60 * 1000);
+};
+
+const stopKeepAlive = () => {
+  if(keepAliveTimer){
+    clearInterval(keepAliveTimer);
+    keepAliveTimer = null;
+  }
+};
+
+
+
 const rooms = new Map();
 
 const createRoom = (code, admin) => {
     return {
-        code: code,
-        admin: admin,
+        code, admin,
         players: [{ name: admin, vote: null, socketId: null }],
         revealed: false,   
         
@@ -43,7 +57,7 @@ const createRoom = (code, admin) => {
         
         removePlayer(socketId) {
             const index = this.players.findIndex(p => p.socketId === socketId);
-            if (index > -1) {
+            if(index > -1){
                 const player = this.players[index];
                 const wasAdmin = player.name === this.admin;
                 this.players.splice(index, 1); 
@@ -118,7 +132,8 @@ io.on('connection', (socket) => {
         room.players[0].socketId = socket.id; 
         rooms.set(roomCode, room);
         socket.join(roomCode);
-        
+        console.log(`startKeepAlive()`);
+        startKeepAlive();
         socket.emit('roomCreated', { roomCode, admin: userName });
         
         io.to(roomCode).emit('roomState', room.getState());
@@ -139,7 +154,8 @@ io.on('connection', (socket) => {
 
         room.addPlayer(userName, socket.id);
         socket.join(roomCode);
-        
+        console.log(`startKeepAlive()`);
+        startKeepAlive();
         socket.emit('roomJoined', { roomCode, admin: room.admin });
         
         io.to(roomCode).emit('roomState', room.getState());
@@ -212,6 +228,8 @@ io.on('connection', (socket) => {
                 io.to(roomCode).emit('roomState', room.getState());
             }
         }
+        console.log(`Rooms Size: ${rooms.size}`)
+        if(rooms.size === 0) stopKeepAlive();
     });
 
     socket.on('disconnect', () => {
@@ -240,4 +258,5 @@ app.get('/', (req, res) => {
 
 
 const PORT = process.env.PORT || 3000;
+
 server.listen(PORT, () => console.log(`Server running on port ${PORT}`));
